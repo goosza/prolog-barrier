@@ -10,6 +10,10 @@ process_state(ready).
 process_state(waiting).
 process_state(finished).
 
+%%% Add thread support %%%
+:- use_module(library(thread)).
+:- mutex_create(barrier_mutex).
+
 %%% Dynamic Facts %%%
 % barrier_count(N) - how many processes we wait for
 % arrived_count(N) - how many processes arrived
@@ -44,3 +48,14 @@ init_process_states :-
     assertz(process_status(ID, ready)),
     fail.
 init_process_states.
+
+%%% Status check predicates %%%
+% Get status of specific process
+get_process_status(ID, State) :-
+    process(ID),
+    process_status(ID, State).
+
+% Get barrier status
+get_barrier_status(BarrierCount, ArrivedCount) :-
+    barrier_count(BarrierCount),
+    arrived_count(ArrivedCount).
