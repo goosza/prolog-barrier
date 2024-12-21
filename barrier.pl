@@ -18,24 +18,33 @@ process_state(finished).
 % barrier_count(N) - how many processes we wait for
 % arrived_count(N) - how many processes arrived
 % process_status(ID, State) - state of process with ID
+% barrier_released - flag to signal when barrier is released
 :- dynamic barrier_count/1.
 :- dynamic arrived_count/1.
 :- dynamic process_status/2.
+:- dynamic barrier_released/0.
 
 %%% Init predicate %%%
 init_barrier(Total) :-
     process_count(Count),
-    Total =< Count,
+    (Total > Count -> 
+        format('Error: Total processes ~w is greater than available processes ~w~n', [Total, Count]),
+        !, fail
+    ;   
+        % Remove old states if exist
+        cleanup_barrier,
+        retractall(barrier_released),  % Clear release flag
+        assertz(barrier_count(Total)),
+        assertz(arrived_count(0)),
+        init_process_states
+    ).
 
-    % Remove old states if exist
+% Cleanup predicate %
+cleanup_barrier :-
     retractall(barrier_count(_)),
     retractall(arrived_count(_)),
     retractall(process_status(_, _)),
-
-    assertz(barrier_count(Total)),
-    assertz(arrived_count(0)),
-
-    init_process_states.
+    retractall(barrier_released).
 
 % Helper to count total number of processes
 process_count(Count) :-
@@ -85,22 +94,30 @@ arrive_at_barrier(ID) :-
         % Check if all processes arrived
         barrier_count(Total),
         (NewCount = Total -> 
-            release_processes
+            thread_create(release_processes, _, [detached(true)])
         ;
             true
         )
-    )).
+    )),
+    % Wait here until barrier is released
+    repeat,
+    (barrier_released -> true ; sleep(0.1), fail).
 
 % Release all processes when barrier is complete
 release_processes :-
-    % Change all waiting processes to finished
-    forall(
-        process_status(ID, waiting),
-        (
-            retract(process_status(ID, waiting)),
-            assertz(process_status(ID, finished))
-        )
-    ).
+    format('All processes arrived at barrier, releasing in 5 seconds...~n'),
+    sleep(5),
+    format('Releasing processes now!~n'),
+    with_mutex(barrier_mutex, (
+        forall(
+            process_status(ID, waiting),
+            (
+                retract(process_status(ID, waiting)),
+                assertz(process_status(ID, finished))
+            )
+        ),
+        assertz(barrier_released)  % Signal processes to continue
+    )).
 
 %%% Process behavior with timing %%%
 process_behavior(ID) :-
