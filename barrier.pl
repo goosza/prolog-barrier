@@ -27,7 +27,10 @@ process_state(finished).
 %%% Init predicate %%%
 init_barrier(Total) :-
     process_count(Count),
-    (Total > Count -> 
+    (Total =< 0 -> 
+        format('Error: Number of processes must be positive~n'),
+        !, fail
+    ; Total > Count -> 
         format('Error: Total processes ~w is greater than available processes ~w~n', [Total, Count]),
         !, fail
     ;   
@@ -142,3 +145,37 @@ launch_processes(N) :-
     forall(between(1, N, ID),
            thread_create(process_behavior(ID), _, 
                         [detached(true)])).
+
+% Help predicate that explains usage
+help :-
+    format('~n=== Barrier Synchronization Implementation ===~n~n'),
+    format('This program implements barrier synchronization for up to 3 parallel processes.~n~n'),
+    
+    format('Available Commands:~n'),
+    format('1. launch_processes(N)          - Launch N processes (1-3)~n'),
+    format('   Example: launch_processes(3).~n~n'),
+    
+    format('Status Commands:~n'),
+    format('1. get_process_status(ID, State) - Check status of specific process~n'),
+    format('   Example: get_process_status(1, State).~n'),
+    format('2. get_barrier_status(B, A)      - Get barrier count (B) and arrived count (A)~n'),
+    format('   Example: get_barrier_status(Total, Current).~n'),
+    format('3. get_all_process_status(States) - Get list of all process states~n'),
+    format('   Example: get_all_process_status(States).~n~n'),
+    
+    format('Process States:~n'),
+    format('- ready: Initial state~n'),
+    format('- waiting: Process is at barrier~n'),
+    format('- finished: Process completed barrier~n~n'),
+    
+    format('How It Works:~n'),
+    format('1. Each process starts and performs 2 seconds of work~n'),
+    format('2. Processes arrive at barrier and wait for others~n'),
+    format('3. When all arrive, there\'s a 5-second demonstration pause~n'),
+    format('4. All processes are released simultaneously~n'),
+    format('5. Each process performs 1 second of final work~n~n'),
+    
+    format('Example Usage:~n'),
+    format('?- help.                     % Show this help~n'),
+    format('?- launch_processes(3).      % Launch max processes~n'),
+    format('?- get_all_process_status(S).% Check process states~n').
